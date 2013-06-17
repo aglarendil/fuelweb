@@ -5,7 +5,7 @@ import traceback
 import web
 
 from nailgun.logger import logger
-from nailgun.api.validators import NetworkConfigurationValidator
+from nailgun.api.validators.network import NetworkConfigurationValidator
 from nailgun.api.models import Cluster
 from nailgun.api.models import NetworkGroup
 from nailgun.api.models import NetworkConfiguration
