@@ -25,4 +25,4 @@ class BasicValidator(object):
 
     @classmethod
     def validate(cls, data):
-        raise NotImplementedError("You should override this method")
+        return cls.validate_json(data)
