@@ -11,6 +11,7 @@ default_messages = {
     "FailedProvisioning": "Failed to start provisioning",
     "WrongNodeStatus": "Wrong node status",
     "NodeOffline": "Node is offline",
+    "NotEnoughControllers": "Not enough controllers",
     # disk errors
     "NotEnoughFreeSpace": "Not enough free space",
     # network errors
