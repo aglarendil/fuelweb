@@ -32,6 +32,7 @@ class TestHandlers(BaseHandlers):
             nodes_kwargs=[
                 {"role": "controller", "pending_addition": True},
                 {"role": "controller", "pending_addition": True},
+                {"role": "controller", "pending_addition": True},
             ]
         )
         cluster_db = self.env.clusters[0]
@@ -471,4 +472,4 @@ class TestHandlers(BaseHandlers):
         self.assertEquals(task.status, 'error')
         self.assertEquals(
             task.message,
-            "Not enough controllers, ha mode requires at least 1 controller")
+            "Not enough controllers, ha mode requires at least 3 controllers")
