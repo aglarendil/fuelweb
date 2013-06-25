@@ -135,6 +135,7 @@ casper.then(function() {
         this.test.assertExists(sdaDiskOS + ' input.error', 'Field validation has worked');
         this.test.assertEval(function(sdaDisk) {return $(sdaDisk + ' .disk-visual .os').width() > 0}, 'VG size was not changed',{sdaDisk:sdaDisk});
         this.click(vdaDisk + ' .toggle-volume');
+        /*
         this.test.assertExists(vdaDiskVM + '', 'Virtual Storage group form is presented');
         this.fill(vdaDisk + ' .volume-group-box[data-group=vm]', {'vm': '10'});
         this.evaluate(function(vdaDisk) {
@@ -145,6 +146,7 @@ casper.then(function() {
             $(vdaDisk + ' .volume-group-box[data-group=os] input').keyup();
         },{vdaDisk:vdaDisk});
         this.test.assertDoesntExist(sdaDiskOS + ' input.error', 'Field validation has worked');
+        */
     });
 
     this.then(function() {

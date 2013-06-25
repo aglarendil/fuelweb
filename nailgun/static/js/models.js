@@ -446,5 +446,23 @@ define(function() {
         url: '/api/logs/sources'
     });
 
+    models.RedHatAccount = Backbone.Model.extend({
+        constructorName: 'RedHatAccount',
+        urlRoot: '/api/redhat/account',
+        validate: function(attrs) {
+            var errors = {};
+            var fields = ['username', 'password'];
+            if (attrs.license_type == 'rhn') {
+                fields = _.union(fields, ['hostname', 'activation_key']);
+            }
+            _.each(fields, function(attr) {
+                if ($.trim(attrs[attr]) == '') {
+                    errors[attr] = 'Invalid value';
+                }
+            });
+            return _.isEmpty(errors) ? null : errors;
+        }
+    });
+
     return models;
 });

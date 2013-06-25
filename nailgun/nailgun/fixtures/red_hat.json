@@ -1,13 +1,13 @@
 [
     {
-        "pk": 1,
+        "pk": 2,
         "model": "nailgun.release",
         "fields": {
-            "name": "OpenStack Grizzly",
+            "name": "OpenStack RHOS 3.0",
             "version": "2013.1.2",
-            "description": "This option will install the OpenStack Grizzly packages using CentOS as a base operating system. With high availability features built in, you are getting a robust, enterprise-grade OpenStack deployment.",
-            "available": true,
-            "operating_system": "CentOS 6.4",
+            "description": "This option will install the Red Hat OpenStack distribution using RHEL as a base operating system. With high availability features built in, you are getting a robust, enterprise-grade OpenStack deployment.",
+            "available": false,
+            "operating_system": "RHEL 6.4",
             "networks_metadata": [
                 {"name": "floating", "access": "public"},
                 {"name": "public", "access": "public"},
@@ -60,7 +60,7 @@
                         "id": "vm",
                         "volumes": [
                             {
-                                "mount": "/var/lib/nova",
+                                "mount": "/var/lib/libvirt",
                                 "type": "lv",
                                 "name": "libvirt",
                                 "size": {

@@ -4,6 +4,8 @@ define(
     'models',
     'text!templates/dialogs/simple_message.html',
     'text!templates/dialogs/create_cluster.html',
+    'text!templates/dialogs/rhel_license.html',
+    'text!templates/dialogs/rhel_credentials.html',
     'text!templates/dialogs/change_cluster_mode.html',
     'text!templates/dialogs/discard_changes.html',
     'text!templates/dialogs/display_changes.html',
@@ -12,7 +14,7 @@ define(
     'text!templates/dialogs/show_node.html',
     'text!templates/dialogs/dismiss_settings.html'
 ],
-function(utils, models, simpleMessageTemplate, createClusterDialogTemplate, changeClusterModeDialogTemplate, discardChangesDialogTemplate, displayChangesDialogTemplate, removeClusterDialogTemplate, errorMessageTemplate, showNodeInfoTemplate, disacardSettingsChangesTemplate) {
+function(utils, models, simpleMessageTemplate, createClusterDialogTemplate, rhelLicenseTemplate, rhelCredentialsFormTemplate, changeClusterModeDialogTemplate, discardChangesDialogTemplate, displayChangesDialogTemplate, removeClusterDialogTemplate, errorMessageTemplate, showNodeInfoTemplate, disacardSettingsChangesTemplate) {
     'use strict';
 
     var views = {};
@@ -56,12 +58,58 @@ function(utils, models, simpleMessageTemplate, createClusterDialogTemplate, chan
         }
     });
 
+    views.RhelLicenseForm = Backbone.View.extend({
+        template: _.template(rhelCredentialsFormTemplate),
+        events: {
+            'change input[name=license-type]': 'toggleRedHatCredentials',
+            'keydown input': 'onInputKeydown'
+        },
+        toggleRedHatCredentials: function() {
+            this.$('.control-group.error').removeClass('error').find('.help-inline').html('');
+            this.$('.control-group.rhn').toggleClass('hide');
+        },
+        onInputKeydown: function(e) {
+            this.$(e.currentTarget).parents('.control-group').removeClass('error').find('.help-inline').html('');
+        },
+        render: function() {
+            this.$el.html(this.template());
+            return this;
+        }
+    });
+
     views.CreateClusterDialog = views.Dialog.extend({
         template: _.template(createClusterDialogTemplate),
         events: {
-            'click .create-cluster-btn:not(.disabled)': 'createCluster',
+            'click .create-cluster-btn:not(.disabled)': 'applyRhelLicenseCredentials',
             'keydown input': 'onInputKeydown',
-            'change select[name=release]': 'updateReleaseDescription'
+            'change select[name=release]': 'updateReleaseParameters'
+        },
+        applyRhelLicenseCredentials: function() {
+            var releaseId = parseInt(this.$('select[name=release]').val(), 10);
+            if (!this.releases.get(releaseId).get('available')) {
+                var options = {
+                    license_type: this.credentials.$('input[name=license-type]:checked').val(),
+                    username: this.credentials.$('input[name=username]').val(),
+                    password: this.credentials.$('input[name=password]').val(),
+                    hostname: this.credentials.$('input[name=hostname]').val(),
+                    activation_key: this.credentials.$('input[name=activation_key]').val()
+                };
+                var deferred = this.redHatAccount.save(options);
+                if (deferred) {
+                    deferred
+                        .done(_.bind(this.createCluster, this))
+                        .fail(_.bind(function(response) {
+                            if (response.status == 409) {
+                                this.redHatAccount.trigger('invalid', this.redHatAccount, response.responseText);
+                                this.$('.btn-os-download').removeClass('disabled');
+                            } else {
+                                this.displayErrorMessage();
+                            }
+                        }, this));
+                }
+            } else {
+                this.createCluster();
+            }
         },
         createCluster: function() {
             this.$('.control-group').removeClass('error').find('.help-inline').text('');
@@ -101,83 +149,90 @@ function(utils, models, simpleMessageTemplate, createClusterDialogTemplate, chan
                 this.createCluster();
             }
         },
+        updateReleaseParameters: function() {
+            var releaseId = parseInt(this.$('select[name=release]').val(), 10);
+            var release = this.releases.get(releaseId);
+            this.$('.rhel-license').toggle(!release.get('available'));
+            this.$('.release-description').text(release.get('description'));
+        },
         renderReleases: function(e) {
-            this.renderOS();
-            this.renderDistribution();
             var input = this.$('select[name=release]');
             input.html('');
-
             this.releases.each(function(release) {
-                if (_.contains(release.get('operation_system'), this.$('select[name=operation_system]').val())){
-                    input.append($('<option/>').attr('value', release.id).text(release.get('name')));
-                }
-            }, this);
-        },
-        renderOS: function() {
-            var input = this.$('select[name=operation_system]');
-            input.html('');
-            this.releases.each(function(release) {
-                input.append($('<option/>').attr('value', release.get('operation_system')).text(release.get('operation_system')));
-            }, this);
-        },
-        renderDistribution: function() {
-            var input = this.$('select[name=distribution]');
-            input.html('');
-            this.releases.each(function(release) {
-                if (_.contains(release.get('operation_system'), this.$('select[name=operation_system]').val())){
-                    _(release.get('distribution')).forEach(function(distribution){
-                        input.append($('<option/>').attr('value', distribution).text(distribution));
-                    });
-                }
-            }, this);
-            this.updateReleaseDescription();
-        },
-        updateReleaseDescription: function() {
-            if (this.releases.length) {
-                var releaseId = parseInt(this.$('select[name=release]').val(), 10);
-                var release = this.releases.get(releaseId);
-                this.$('select[name=release] ~ .help-block').text(release.get('description'));
-            }
+                input.append($('<option/>').attr('value', release.id).text(release.get('name') + ' on ' + release.get('operating_system') + ' (' + release.get('version') + ')'));
+            });
+            this.updateReleaseParameters();
         },
         initialize: function() {
+            this.credentials = new views.RhelLicenseForm();
+            this.registerSubView(this.credentials);
+            this.redHatAccount = new models.RedHatAccount();
+            this.redHatAccount.on('invalid', function(model, error) {
+                _.each(error, function(message, field) {
+                    this.credentials.$('*[name=' + field + ']').closest('.control-group').addClass('error').find('.help-inline').text(message);
+                }, this);
+            }, this);
             this.releases = new models.Releases();
-            this.releases.fetch();
-            this.releases.on('sync', this.renderReleases, this);
+            this.releases.fetch().done(_.bind(this.renderReleases, this));
+        },
+        render: function() {
+            this.tearDownRegisteredSubViews();
+            this.constructor.__super__.render.call(this);
+            this.$('.credentials').html(this.credentials.render().el);
+            return this;
         }
     });
 
     views.RhelLicenseDialog = views.Dialog.extend({
         template: _.template(rhelLicenseTemplate),
         events: {
-            'click .btn-success': 'saveSettings',
-            'change input[name=license-type]': 'toggleTypes',
-            'change input[type=text]': 'validate'
+            'click .btn-os-download': 'applyRhelLicenseCredentials'
         },
-        saveSettings: function() {
-            this.account.license_type = this.$('input[name=license-type]:checked').val();
-            if (this.account.license_type == 'rhsm') {
-                this.account.username = this.$('input[name=username').val();
-                this.account.password = this.$('input[name=password').val();
+        applyRhelLicenseCredentials: function() {
+            var options = {
+                license_type: this.credentials.$('input[name=license-type]:checked').val(),
+                username: this.credentials.$('input[name=username]').val(),
+                password: this.credentials.$('input[name=password]').val(),
+                hostname: this.credentials.$('input[name=hostname]').val(),
+                activation_key: this.credentials.$('input[name=activation_key]').val()
+            };
+            var deferred = this.redHatAccount.save(options);
+            if (deferred) {
+                this.$('.btn-os-download').addClass('disabled');
+                deferred
+                    .always(_.bind(function() {
+                        app.navbar.tasks
+                            .fetch({data: {cluster_id: ''}})
+                            .done(_.bind(function() {
+                                this.$el.modal('hide');
+                                app.page.scheduleUpdate();
+                            }, this));
+                    }, this))
+                    /*.fail(_.bind(function(response) {
+                        if (response.status == 409) {
+                            this.redHatAccount.trigger('invalid', this.redHatAccount, response.responseText);
+                            this.$('.btn-os-download').removeClass('disabled');
+                        } else {
+                            this.displayErrorMessage();
+                        }
+                    }, this))*/;
             }
-            else {
-                this.account.hostname = this.$('input[name=hostname').val();
-                this.account.activation_key = this.$('input[name=activation_key').val();
-            }
-
-            this.model.save({}, {url: _.result(this.model, 'url'), type: 'POST'})
-                .done(_.bind(function() {
-                    this.$el.modal('hide');
-                    app.page.downloadStarted();
-                }, this))
-                .fail(_.bind(this.displayErrorMessage, this));
-            app.page.downloadStarted();
         },
-        toggleTypes: function() {
-            this.account.license_type = this.$('input[name=license-type]:checked').val();
-            this.$('.control-group').toggleClass('hide');
+        initialize: function() {
+            this.credentials = new views.RhelLicenseForm();
+            this.registerSubView(this.credentials);
+            this.redHatAccount = new models.RedHatAccount();
+            this.redHatAccount.on('invalid', function(model, error) {
+                _.each(error, function(message, field) {
+                    this.credentials.$('*[name=' + field + ']').closest('.control-group').addClass('error').find('.help-inline').text(message);
+                }, this);
+            }, this);
         },
-        validate: function(e) {
-            var a = 2;
+        render: function() {
+            this.tearDownRegisteredSubViews();
+            this.constructor.__super__.render.call(this);
+            this.$('.credentials').html(this.credentials.render().el);
+            return this;
         }
     });
 

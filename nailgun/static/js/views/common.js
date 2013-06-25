@@ -47,6 +47,23 @@ function(utils, models, dialogViews, navbarTemplate, nodesStatsTemplate, notific
             this.$('a.active').removeClass('active');
             this.$('a[href="#' + element + '"]').addClass('active');
         },
+        task: function(taskName, status) {
+            return this.tasks && this.tasks.find(function(task) {
+                var result = false;
+                if (task.get('name') == taskName) {
+                    if (status) {
+                        if (_.isArray(status)) {
+                            result = _.contains(status, task.get('status'));
+                        } else {
+                            result = status == task.get('status');
+                        }
+                    } else {
+                        result = true;
+                    }
+                }
+                return result;
+            });
+        },
         scheduleUpdate: function() {
             this.registerDeferred($.timeout(this.updateInterval).done(_.bind(this.update, this)));
         },
@@ -58,6 +75,7 @@ function(utils, models, dialogViews, navbarTemplate, nodesStatsTemplate, notific
         },
         initialize: function(options) {
             this.elements = _.isArray(options.elements) ? options.elements : [];
+            this.tasks = new models.Tasks();
             this.nodes = new models.Nodes();
             this.notifications = new models.Notifications();
             $.when(this.nodes.deferred = this.nodes.fetch(), this.notifications.deferred = this.notifications.fetch()).done(_.bind(this.scheduleUpdate, this));
